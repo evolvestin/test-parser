@@ -32,7 +32,7 @@ def starting_print(timestamp):
     objects.printer(text)
 
 
-Repo.clone_from('https://github.com/evolvestin/CW-Notify-Storage', 'temp')
+Repo.clone_from('https://github.com/evolvestin/test-parcer', 'temp')
 for file_name in os.listdir('temp/worker'):
     if os.path.isdir(f'temp/worker/{file_name}'):
         shutil.copytree(f'temp/worker/{file_name}', file_name)
