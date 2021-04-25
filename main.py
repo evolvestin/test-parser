@@ -44,5 +44,8 @@ starting_print(stamp)
 
 
 if __name__ == '__main__':
-    from worker import start
+    if os.environ.get('MAIN_TOKEN') is None:
+        from worker import start
+    else:
+        from bot import start
     start(int(stamp))
