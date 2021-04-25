@@ -98,8 +98,8 @@ def start(stamp):
                 updater(chrome_client, key)
             print(f"Проход {', '.join(db.keys())} за {datetime.now().timestamp() - stamp}")
             chrome_client.close()
-        except IndexError and Exception:
-            pass
+        except IndexError and Exception as error:
+            print(error)
 
 
 if os.environ.get('local'):
