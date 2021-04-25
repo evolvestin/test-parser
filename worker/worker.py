@@ -16,12 +16,16 @@ def db_creation():
     data = {}
     folder_id = None
     client = Drive(json_path)
+    allowed = os.environ['allowed'].split('/') if os.environ.get('allowed') else []
+
     for folder in client.files(only_folders=True):
         if folder['name'] == os.environ.get('folder'):
             folder_id = folder['id']
 
     for file in client.files(parents=folder_id):
-        data[re.sub(r'\.png', '', file['name'])] = file['id']
+        name = re.sub(r'\.png', '', file['name'])
+        if name in allowed:
+            data[name] = file['id']
     return data, client
 
 
@@ -87,12 +91,15 @@ def start(stamp):
     if os.environ.get('local') is None:
         print(f'Запуск на сервере за {objects.time_now() - stamp}')
     while True:
-        chrome_client = chrome(os.environ.get('local'))
-        stamp = datetime.now().timestamp()
-        for key in db:
-            updater(chrome_client, key)
-        print(f'Проход всех за {datetime.now().timestamp() - stamp}')
-        chrome_client.close()
+        try:
+            chrome_client = chrome(os.environ.get('local'))
+            stamp = datetime.now().timestamp()
+            for key in db:
+                updater(chrome_client, key)
+            print(f"Проход {', '.join(db.keys())} за {datetime.now().timestamp() - stamp}")
+            chrome_client.close()
+        except IndexError and Exception:
+            pass
 
 
 if os.environ.get('local'):
