@@ -91,15 +91,18 @@ def start(stamp):
     if os.environ.get('local') is None:
         print(f'Запуск на сервере за {objects.time_now() - stamp}')
     while True:
+        chrome_client = None
         try:
-            chrome_client = chrome(os.environ.get('local'))
             stamp = datetime.now().timestamp()
+            chrome_client = chrome(os.environ.get('local'))
             for key in db:
                 updater(chrome_client, key)
-            print(f"Проход {', '.join(db.keys())} за {datetime.now().timestamp() - stamp}")
             chrome_client.close()
+            print(f"Проход {', '.join(db.keys())} за {datetime.now().timestamp() - stamp}")
         except IndexError and Exception as error:
             print(error)
+            if chrome_client:
+                chrome_client.close()
 
 
 if os.environ.get('local'):
