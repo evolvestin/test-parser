@@ -102,7 +102,10 @@ def start(stamp):
         except IndexError and Exception as error:
             print(error)
             if chrome_client:
-                chrome_client.close()
+                try:
+                    chrome_client.close()
+                except IndexError and Exception:
+                    pass
 
 
 if os.environ.get('local'):
