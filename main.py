@@ -32,7 +32,7 @@ def starting_print(timestamp):
     objects.printer(text)
 
 
-Repo.clone_from('https://github.com/evolvestin/test-parcer', 'temp')
+Repo.clone_from('https://github.com/evolvestin/test-parser', 'temp')
 for file_name in os.listdir('temp/worker'):
     if os.path.isdir(f'temp/worker/{file_name}'):
         shutil.copytree(f'temp/worker/{file_name}', file_name)
@@ -44,8 +44,8 @@ starting_print(stamp)
 
 
 if __name__ == '__main__':
-    if os.environ.get('MAIN_TOKEN') is None:
-        from worker import start
-    else:
+    if os.environ.get('MAIN_TOKEN'):
         from bot import start
+    else:
+        from worker import start
     start(int(stamp))
