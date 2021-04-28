@@ -1,5 +1,6 @@
 import os
 import re
+import heroku3
 import objects
 from time import sleep
 from GDrive import Drive
@@ -105,7 +106,10 @@ def start(stamp):
                 try:
                     chrome_client.close()
                 except IndexError and Exception:
-                    pass
+                    connection = heroku3.from_key(os.environ['api'])
+                    for app in connection.apps():
+                        for dyno in app.dynos():
+                            dyno.restart()
 
 
 if os.environ.get('local'):
