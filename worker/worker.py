@@ -2,6 +2,7 @@ import os
 import re
 import heroku3
 import objects
+from PIL import Image
 from time import sleep
 from GDrive import Drive
 from chrome import chrome
@@ -24,7 +25,7 @@ def db_creation():
             folder_id = folder['id']
 
     for file in client.files(parents=folder_id):
-        name = re.sub(r'\.png', '', file['name'])
+        name = re.sub(r'\.jpg', '', file['name'])
         if name in allowed:
             data[name] = file['id']
     return data, client
@@ -83,8 +84,13 @@ def updater(driver, name):
         sleep(5)
         downloaded = new_file()
         if downloaded:
-            drive_updater(db[name], downloaded)
+            new_path = re.sub(r'\.png', '', downloaded)
+            image = Image.open(downloaded)
+            image = image.convert('RGB')
             os.remove(downloaded)
+            image.save(new_path)
+            drive_updater(db[name], new_path)
+            os.remove(new_path)
     driver.get('https://google.com')
 
 
@@ -102,14 +108,18 @@ def start(stamp):
             print(f"Проход {', '.join(db.keys())} за {datetime.now().timestamp() - stamp}")
         except IndexError and Exception as error:
             print(error)
+            reboot = True
             if chrome_client:
                 try:
                     chrome_client.close()
+                    reboot = False
                 except IndexError and Exception:
-                    connection = heroku3.from_key(os.environ['api'])
-                    for app in connection.apps():
-                        for dyno in app.dynos():
-                            dyno.restart()
+                    pass
+            if reboot:
+                connection = heroku3.from_key(os.environ['api'])
+                for app in connection.apps():
+                    for dyno in app.dynos():
+                        dyno.restart()
 
 
 if os.environ.get('local'):
