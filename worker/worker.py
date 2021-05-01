@@ -84,7 +84,7 @@ def updater(driver, name):
         sleep(5)
         downloaded = new_file()
         if downloaded:
-            new_path = re.sub(r'\.png', '', downloaded)
+            new_path = re.sub(r'\.png', '.jpg', downloaded)
             image = Image.open(downloaded)
             image = image.convert('RGB')
             os.remove(downloaded)
