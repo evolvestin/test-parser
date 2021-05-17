@@ -4,7 +4,6 @@ import heroku3
 import objects
 from PIL import Image
 from time import sleep
-from GDrive import Drive
 from chrome import chrome
 from datetime import datetime
 from selenium.webdriver import ActionChains
@@ -17,7 +16,7 @@ from selenium.webdriver.support import expected_conditions as ec
 def db_creation():
     data = {}
     folder_id = None
-    client = Drive(json_path)
+    client = objects.GoogleDrive(json_path)
     allowed = os.environ['allowed'].split('/') if os.environ.get('allowed') else []
 
     for folder in client.files(only_folders=True):
@@ -51,7 +50,7 @@ def drive_updater(file_id, file_path):
     try:
         drive_client.update_file(file_id, file_path)
     except IndexError and Exception:
-        drive_client = Drive(json_path)
+        drive_client = objects.GoogleDrive(json_path)
         drive_client.update_file(file_id, file_path)
 
 
