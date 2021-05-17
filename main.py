@@ -43,7 +43,7 @@ starting_print(stamp)
 
 
 if __name__ == '__main__':
-    if os.environ.get('MAIN_TOKEN'):
+    if os.environ.get('TOKEN'):
         from bot import start
     else:
         from worker import start
