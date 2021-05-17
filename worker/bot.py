@@ -197,7 +197,7 @@ async def repeat_all_messages(message: types.Message):
                         text = Auth.logs.text()
 
                     elif message['text'].lower().startswith('/reboot'):
-                        text = objects.heroku_reboot()
+                        text, log_text = objects.heroku_reboot()
 
             elif message['text'] in keys_names:
                 image = db.get_image(message['text'])
