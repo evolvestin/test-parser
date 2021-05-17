@@ -1,7 +1,6 @@
 import os
 import stat
 import shutil
-import objects
 from datetime import datetime
 from git.repo.base import Repo
 # ========================================================================================================
@@ -29,7 +28,7 @@ def starting_print(timestamp):
                 text += 'у'
             elif str(rounded)[-1] in ['2', '3', '4']:
                 text += 'ы'
-    objects.printer(text)
+    print(text)
 
 
 Repo.clone_from('https://github.com/evolvestin/test-parser', 'temp')
