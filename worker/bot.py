@@ -119,10 +119,13 @@ def first_start(message):
 
 async def sender(message, user, text=None, keyboard=None, log_text=None):
     global logging
+    dump = True if 'Впервые' in str(log_text) else None
     kwargs = {'log': log_text, 'text': text, 'user': user, 'message': message, 'keyboard': keyboard}
     response, log_text, update = await Auth.async_message(bot.send_message, **kwargs)
     if log_text is not None:
         logging.append(log_text)
+        if dump:
+            await Auth.async_message(bot.send_message, id=Auth.logs.dump_chat_id, text=log_text)
     if update:
         db = SQL(db_path)
         db.update('users', user['id'], update)
@@ -198,6 +201,7 @@ async def repeat_all_messages(message: types.Message):
 
                     elif message['text'].lower().startswith('/reboot'):
                         text, log_text = objects.heroku_reboot()
+                        log_text = f' {log_text}'
 
             elif message['text'] in keys_names:
                 image = db.get_image(message['text'])
