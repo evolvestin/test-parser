@@ -14,6 +14,7 @@ from aiogram.utils import executor
 from objects import bold, code, time_now
 from objects import GoogleDrive as Drive
 from aiogram.dispatcher import Dispatcher
+from datetime import datetime, timezone, timedelta
 # =================================================================================================================
 stamp1 = time_now()
 
@@ -102,32 +103,6 @@ dispatcher = Dispatcher(bot)
 zero_user, google_users_ids, users_columns = users_db_creation()
 keys_names, drive_client, static_keys, main_folder = images_db_creation()
 # =================================================================================================================
-import heroku3
-import time
-
-
-async def reboot(self_delay, _dispatcher):
-    def heroku(_connection):
-        time.sleep(4)
-        _dispatcher.stop_polling()
-        time.sleep(self_delay+1)
-        for app in connection.apps():
-            for dyno in app.dynos():
-                dyno.restart()
-
-    if os.environ.get('api'):
-        if self_delay+5 in [21, 31, 41]:
-            postfix = 'секунду'
-        elif self_delay+5 in [22, 23, 24, 32, 33, 34]:
-            postfix = 'секунды'
-        else:
-            postfix = 'секунд'
-        text, log_text = f'✅ Перезапуск через {self_delay+5} {postfix}.', '[Успешно]'
-        connection = heroku3.from_key(os.environ['api'])
-        _thread.start_new_thread(heroku, (connection,))
-    else:
-        text, log_text = '❌ Переменная окружения не установлена.', '[Неудачно]'
-    return bold(text), f' {bold(log_text)}'
 
 
 def first_start(message):
@@ -226,7 +201,7 @@ async def repeat_all_messages(message: types.Message):
                         text = Auth.logs.text()
 
                     elif message['text'].lower().startswith('/reboot'):
-                        text, log_text = await reboot(15, dispatcher)
+                        text, log_text = Auth.logs.reboot()
 
             elif message['text'] in keys_names:
                 image = db.get_image(message['text'])
@@ -322,13 +297,29 @@ def logger():
             Auth.dev.thread_except()
 
 
+def auto_reboot():
+    global logging
+    reboot = None
+    while True:
+        try:
+            date = datetime.now(timezone(timedelta(hours=3)))
+            if date.strftime('%M') == '01' and date.strftime('%M') == '00':
+                reboot = True
+            sleep(60)
+            if reboot:
+                reboot = None
+                Auth.logs.reboot()
+        except IndexError and Exception:
+            Auth.dev.thread_except()
+
+
 def start(stamp):
     if os.environ.get('local'):
-        threads = [logger, google_update]
+        threads = [logger, google_update, auto_reboot]
         Auth.dev.printer(f'Запуск бота локально за {time_now() - stamp} сек.')
     else:
         Auth.dev.start(stamp)
-        threads = [logger, google_update, google_files]
+        threads = [logger, google_update, google_files, auto_reboot]
         Auth.dev.printer(f'Бот запущен за {time_now() - stamp} сек.')
 
     for thread_element in threads:
