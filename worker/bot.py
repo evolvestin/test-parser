@@ -201,7 +201,7 @@ async def repeat_all_messages(message: types.Message):
                         text = Auth.logs.text()
 
                     elif message['text'].lower().startswith('/reboot'):
-                        text, log_text = Auth.logs.reboot()
+                        text, log_text = Auth.logs.reboot(dispatcher)
 
             elif message['text'] in keys_names:
                 image = db.get_image(message['text'])
@@ -308,7 +308,7 @@ def auto_reboot():
             sleep(60)
             if reboot:
                 reboot = None
-                Auth.logs.reboot()
+                Auth.logs.reboot(dispatcher)
         except IndexError and Exception:
             Auth.dev.thread_except()
 
