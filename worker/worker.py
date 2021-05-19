@@ -78,9 +78,9 @@ def updater(driver, name):
         ActionChains(driver).move_to_element_with_offset(element, 315, 35).click().perform()
         WebDriverWait(driver, 20).until(ec.presence_of_element_located(
             (By.CLASS_NAME, 'chart-share-modal-content-footer-download')))
-        sleep(6)
+        sleep(3)
         driver.find_element(By.CLASS_NAME, 'chart-share-modal-content-footer-download').click()
-        sleep(4)
+        sleep(5)
         downloaded = new_file()
         if downloaded:
             new_path = re.sub(r'\.png', '.jpg', downloaded)
@@ -114,7 +114,7 @@ def start(stamp):
                     reboot = False
                 except IndexError and Exception:
                     pass
-            if reboot:
+            if reboot and os.environ.get('api'):
                 connection = heroku3.from_key(os.environ['api'])
                 for app in connection.apps():
                     for dyno in app.dynos():
