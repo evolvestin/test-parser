@@ -109,10 +109,10 @@ os.makedirs('db', exist_ok=True)
 os.makedirs('images', exist_ok=True)
 Auth = objects.AuthCentre(LOG_DELAY=15,
                           ID_DEV=-1001312302092,
-                          ID_DUMP=-1001131906128,  # -1001486338288,
-                          ID_LOGS=-1001131906128,  # -1001275893652,
-                          ID_MEDIA=-1001131906128,  # -1001423966952,
-                          ID_FORWARD=-1001131906128,  # -1001254536149,
+                          ID_DUMP=-1001486338288,
+                          ID_LOGS=-1001275893652,
+                          ID_MEDIA=-1001423966952,
+                          ID_FORWARD=-1001254536149,
                           TOKEN=os.environ.get('TOKEN'),
                           DEV_TOKEN=os.environ['DEV_TOKEN'])
 
