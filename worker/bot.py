@@ -5,7 +5,9 @@ import asyncio
 import gspread
 import objects
 import _thread
+import requests
 from SQL import SQL
+from PIL import Image
 from time import sleep
 from aiogram import types
 from copy import copy, deepcopy
@@ -17,6 +19,17 @@ from aiogram.dispatcher import Dispatcher
 from datetime import datetime, timezone, timedelta
 # =================================================================================================================
 stamp1 = time_now()
+
+
+def download_alt_image():
+    download_path = 'alt.png'
+    response = requests.get(os.environ.get('alt_image'), stream=True)
+    with open(download_path, 'wb') as file:
+        file.write(response.content)
+    image = Image.open(download_path)
+    image = image.convert('RGB')
+    image.save('images/alt.jpg')
+    os.remove(download_path)
 
 
 def users_db_creation():
@@ -96,13 +109,14 @@ os.makedirs('db', exist_ok=True)
 os.makedirs('images', exist_ok=True)
 Auth = objects.AuthCentre(LOG_DELAY=15,
                           ID_DEV=-1001312302092,
-                          ID_DUMP=-1001486338288,
-                          ID_LOGS=-1001275893652,
-                          ID_MEDIA=-1001423966952,
-                          ID_FORWARD=-1001254536149,
+                          ID_DUMP=-1001131906128,  # -1001486338288,
+                          ID_LOGS=-1001131906128,  # -1001275893652,
+                          ID_MEDIA=-1001131906128,  # -1001423966952,
+                          ID_FORWARD=-1001131906128,  # -1001254536149,
                           TOKEN=os.environ.get('TOKEN'),
                           DEV_TOKEN=os.environ['DEV_TOKEN'])
 
+download_alt_image()
 bot = Auth.async_bot
 dispatcher = Dispatcher(bot)
 names, frames, drive_client, main_folder = images_db_creation()
@@ -255,10 +269,16 @@ async def repeat_all_messages(message: types.Message):
                     elif message['text'].lower().startswith('/reboot'):
                         text, log_text = Auth.logs.reboot(dispatcher)
 
+                    elif message['text'].lower().startswith('/new'):
+                        response = True
+                        await Auth.async_message(bot.send_photo, id=message['chat']['id'], path='images/alt.jpg')
+
                     elif message['text'].lower().startswith('/reload'):
+                        text = 'Успешно отправлено:'
                         query = "SELECT id FROM users WHERE reaction = '✅' AND NOT id = 0"
                         users = db.request(query)
                         for target_user in users:
+                            text += f"\n{target_user['id']}"
                             await Auth.async_message(bot.send_message, id=target_user['id'],
                                                      text=bold('Бот обновлен'), keyboard=keys.folders())
 
@@ -344,6 +364,40 @@ def google_files():
             Auth.dev.thread_except()
 
 
+def alt_image():
+    load = None
+    while True:
+        try:
+            date = datetime.now(timezone(timedelta(hours=0)))
+            if date.strftime('%H') == '00' and \
+                    date.strftime('%M') in ['00', '01', '02'] and date.strftime('%S') == '00':
+                load = True
+            sleep(1)
+            if load:
+                download_alt_image()
+                sleep(10)
+        except IndexError and Exception:
+            Auth.dev.thread_except()
+
+
+def auto_reboot():
+    global logging
+    reboot = None
+    while True:
+        try:
+            date = datetime.now(timezone(timedelta(hours=3)))
+            if date.strftime('%H') == '01' and date.strftime('%M') == '00':
+                reboot = True
+            sleep(50)
+            if reboot:
+                reboot = None
+                Auth.logs.reboot(dispatcher)
+                sleep(60)
+                print('перезагрузили')
+        except IndexError and Exception:
+            Auth.dev.thread_except()
+
+
 def logger():
     global logging
     while True:
@@ -355,29 +409,13 @@ def logger():
             Auth.dev.thread_except()
 
 
-def auto_reboot():
-    global logging
-    reboot = None
-    while True:
-        try:
-            date = datetime.now(timezone(timedelta(hours=3)))
-            if date.strftime('%M') == '01' and date.strftime('%M') == '00':
-                reboot = True
-            sleep(60)
-            if reboot:
-                reboot = None
-                Auth.logs.reboot(dispatcher)
-        except IndexError and Exception:
-            Auth.dev.thread_except()
-
-
 def start(stamp):
     if os.environ.get('local'):
-        threads = [logger, google_update, auto_reboot]
+        threads = [logger, google_update]
         Auth.dev.printer(f'Запуск бота локально за {time_now() - stamp} сек.')
     else:
         Auth.dev.start(stamp)
-        threads = [logger, google_update, google_files, auto_reboot]
+        threads = [logger, google_update, google_files, auto_reboot, alt_image]
         Auth.dev.printer(f'Бот запущен за {time_now() - stamp} сек.')
 
     for thread_element in threads:
