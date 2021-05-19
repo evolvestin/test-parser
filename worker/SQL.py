@@ -152,9 +152,9 @@ class SQL:
     def get_images(self):
         return self.request('SELECT * FROM images ORDER BY last_update DESC')
 
-    def get_image(self, name):
-        return self.request(f"SELECT * FROM images WHERE name = '{name}'", fetchone=True)
-
     def get_image_by_id(self, file_id):
         return self.request(f"SELECT * FROM images WHERE id = '{file_id}'", fetchone=True)
+
+    def get_image(self, frame, name):
+        return self.request(f"SELECT * FROM images WHERE name = '{name}' AND frame = '{frame}'", fetchone=True)
     # ------------------------------------------------------------------------------------------ IMAGES END

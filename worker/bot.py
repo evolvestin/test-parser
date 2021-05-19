@@ -30,15 +30,36 @@ def users_db_creation():
     return _zero_user, ['id', *users_ids], columns
 
 
+class Keys:
+    def __init__(self):
+        self.k = types.KeyboardButton
+        self.b = types.InlineKeyboardButton
+
+    def folders(self):
+        keyboard = types.ReplyKeyboardMarkup(row_width=2, resize_keyboard=True)
+        keyboard.add(*[self.k(button) for button in [os.environ['folder'].capitalize(), f"{'Fear'}&{'Greed'}"]])
+        return keyboard
+
+    def frames(self):
+        keyboard = types.InlineKeyboardMarkup(row_width=2)
+        keyboard.add(*[self.b(text, callback_data=f'{frame}') for frame, text in frames])
+        return keyboard
+
+    def currencies(self, frame):
+        keyboard = types.InlineKeyboardMarkup(row_width=4)
+        keyboard.add(*[self.b(name, callback_data=f'{name}_{frame}') for name in names])
+        return keyboard
+
+
 def images_db_creation():
-    names = []
-    buttons = []
-    raw_names = []
+    _names = []
+    _frames = []
+    raw_frames = []
     folder_id = None
     db = SQL(db_path)
     client = Drive('google.json')
-    keyboard = types.ReplyKeyboardMarkup(row_width=4, resize_keyboard=True)
-    db.create_table('images', ['id <TEXT>', 'name', 'path', 'last_update <DATE>'])
+
+    db.create_table('images', ['id <TEXT>', 'name', 'frame', 'path', 'last_update <DATE>'])
     allowed = os.environ['allowed'].split('/') if os.environ.get('allowed') else []
 
     for folder in client.files(only_folders=True):
@@ -48,39 +69,23 @@ def images_db_creation():
     for file in client.files(parents=folder_id):
         name = re.sub(r'\.jpg', '', file['name'])
         if name in allowed or len(allowed) == 0:
-            raw_names.append(name)
-            name = re.sub('_', ' ', name)
-            name = re.sub('5', '5 мин', name)
-            name = re.sub('60', '1 час', name)
+            frame = int(re.sub('[^0-9]', '', name))
+            name = re.sub('[^A-Z]', '', name)
             path = f"images/{file['name']}"
             db.create_image({
                 'name': name,
                 'path': path,
+                'frame': frame,
                 'id': file['id'],
                 'last_update': file['modifiedTime']})
+            _names.append(name) if name not in _names else None
+            raw_frames.append(frame) if frame not in raw_frames else None
             client.download_file(file['id'], path)
-
-    names_db = {}
-    for name in raw_names:
-        prefix, postfix = name.split('_')
-        name = re.sub('_', ' ', name)
-        name = re.sub('5', '5 мин', name)
-        name = re.sub('60', '1 час', name)
-        if names_db.get(prefix) is None:
-            names_db[prefix] = {}
-        names_db[prefix][name] = int(re.sub(r'\D', '', postfix))
-
-    for key in names_db:
-        names_db[key] = sorted(names_db[key], reverse=True)
-
-    for key in sorted(names_db, key=lambda x: x):
-        for name in names_db[key]:
-            names.append(name)
-            buttons.append(types.KeyboardButton(name))
-
-    keyboard.add(*buttons)
+    for frame in sorted(raw_frames):
+        text = '5 мин' if frame == 5 else '1 час'
+        _frames.append((frame, text))
     db.close()
-    return names, client, keyboard, folder_id
+    return sorted(_names), _frames, client, folder_id
 
 
 logging = []
@@ -100,9 +105,10 @@ Auth = objects.AuthCentre(LOG_DELAY=15,
 
 bot = Auth.async_bot
 dispatcher = Dispatcher(bot)
+names, frames, drive_client, main_folder = images_db_creation()
 zero_user, google_users_ids, users_columns = users_db_creation()
-keys_names, drive_client, static_keys, main_folder = images_db_creation()
 # =================================================================================================================
+keys = Keys()
 
 
 def first_start(message):
@@ -115,18 +121,33 @@ def first_start(message):
         'id': message['chat']['id']})
     db.create_user(user)
     db.close()
-    return 'Добро пожаловать', static_keys
+    return 'Добро пожаловать', keys.folders()
 
 
-async def sender(message, user, text=None, keyboard=None, log_text=None):
+async def sender(message, user, text=None, keyboard=None, log_text=None, **a_kwargs):
     global logging
     dump = True if 'Впервые' in str(log_text) else None
-    kwargs = {'log': log_text, 'text': text, 'user': user, 'message': message, 'keyboard': keyboard}
-    response, log_text, update = await Auth.async_message(bot.send_message, **kwargs)
+    task = a_kwargs['func'] if a_kwargs.get('func') else bot.send_message
+    kwargs = {'log': log_text, 'text': text, 'user': user, 'message': message, 'keyboard': keyboard, **a_kwargs}
+    response, log_text, update = await Auth.async_message(task, **kwargs)
     if log_text is not None:
         logging.append(log_text)
         if dump:
             await Auth.async_message(bot.send_message, id=Auth.logs.dump_chat_id, text=log_text)
+    if update:
+        db = SQL(db_path)
+        db.update('users', user['id'], update)
+        db.close()
+    return response
+
+
+async def editor(call, user, text, keyboard, log_text=None):
+    global logging
+    await bot.answer_callback_query(call['id'])
+    kwargs = {'log': log_text, 'call': call, 'text': text, 'user': user, 'keyboard': keyboard}
+    response, log_text, update = await Auth.async_message(bot.edit_message_text, **kwargs)
+    if log_text is not None:
+        logging.append(log_text)
     if update:
         db = SQL(db_path)
         db.update('users', user['id'], update)
@@ -173,13 +194,44 @@ async def red_messages(message: types.Message):
         await Auth.dev.async_except(message)
 
 
+@dispatcher.callback_query_handler()
+async def callbacks(call):
+    try:
+        db = SQL(db_path)
+        keyboard = call['message']['reply_markup']
+        user = db.get_user(call['message']['chat']['id'])
+        if user:
+            text, log_text = None, None
+            split = call['data'].split('_')
+            if len(split) == 2:
+                if split[0] in names:
+                    image = db.get_image(name=split[0], frame=split[1])
+                    await editor(call, user, text=text, keyboard=keyboard, log_text=log_text)
+                    if image:
+                        caption = None
+                        if call['message']['chat']['id'] == idMe:
+                            last_update = Auth.logs.time(image['last_update'], tag=bold, form='iso')
+                            caption = f"Изображение: {bold(image['path'])}\nОбновлено: {last_update}"
+                        await sender(call['message'], user, id=call['message']['chat']['id'],
+                                     func=bot.send_photo, path=image['path'], caption=caption)
+            else:
+                for frame, f_text in frames:
+                    if str(frame) in call['data']:
+                        keyboard = keys.currencies(frame)
+                        text = f'Выбран фрейм {f_text}, выберите валюту'
+                await editor(call, user, text=text, keyboard=keyboard, log_text=log_text)
+        db.close()
+    except IndexError and Exception:
+        await Auth.dev.async_except(call)
+
+
 @dispatcher.message_handler()
 async def repeat_all_messages(message: types.Message):
     try:
         db = SQL(db_path)
         user = db.get_user(message['chat']['id'])
         if user:
-            keyboard = static_keys
+            keyboard = keys.folders()
             text, response, log_text = None, None, True
 
             if message['text'].startswith('/'):
@@ -203,17 +255,23 @@ async def repeat_all_messages(message: types.Message):
                     elif message['text'].lower().startswith('/reboot'):
                         text, log_text = Auth.logs.reboot(dispatcher)
 
-            elif message['text'] in keys_names:
-                image = db.get_image(message['text'])
-                if image:
-                    caption = None
-                    response = True
-                    if message['chat']['id'] == idMe:
-                        last_update = Auth.logs.time(image['last_update'], tag=bold, form='iso')
-                        caption = f"Изображение: {bold(image['path'])}\n" \
-                                  f"Обновлено: {last_update}"
-                    await Auth.async_message(Auth.async_bot.send_photo, id=message['chat']['id'],
-                                             path=image['path'], caption=caption)
+                    elif message['text'].lower().startswith('/reload'):
+                        query = "SELECT id FROM users WHERE reaction = '✅' AND NOT id = 0"
+                        users = db.request(query)
+                        for target_user in users:
+                            await Auth.async_message(bot.send_message, id=target_user['id'],
+                                                     text=bold('Бот обновлен'), keyboard=keys.folders())
+
+                if message['text'].lower().startswith('/remove'):
+                    await bot.send_message(message['chat']['id'], bold('Окей'),
+                                           reply_markup=types.ReplyKeyboardRemove(True), parse_mode='HTML')
+
+            elif message['text'].lower().startswith('f'):
+                text = bold('Пример сообщения')
+
+            elif message['text'].lower().startswith('h'):
+                text = 'Выбор таймфрейма'
+                keyboard = keys.frames()
 
             await sender(message, user, text, keyboard, log_text=log_text)
             if text is None and response is None:
