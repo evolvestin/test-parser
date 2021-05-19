@@ -78,9 +78,9 @@ def updater(driver, name):
         ActionChains(driver).move_to_element_with_offset(element, 315, 35).click().perform()
         WebDriverWait(driver, 20).until(ec.presence_of_element_located(
             (By.CLASS_NAME, 'chart-share-modal-content-footer-download')))
-        sleep(4)
+        sleep(6)
         driver.find_element(By.CLASS_NAME, 'chart-share-modal-content-footer-download').click()
-        sleep(5)
+        sleep(4)
         downloaded = new_file()
         if downloaded:
             new_path = re.sub(r'\.png', '.jpg', downloaded)
