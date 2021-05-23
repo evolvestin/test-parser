@@ -112,6 +112,7 @@ def updater(driver, name):
 def start(stamp):
     if os.environ.get('local') is None:
         print(f'Запуск на сервере за {objects.time_now() - stamp}')
+    _thread.start_new_thread(checking_updated, ())
     while True:
         chrome_client = None
         try:
@@ -120,7 +121,6 @@ def start(stamp):
             for key in db:
                 updater(chrome_client, key)
             chrome_client.close()
-            _thread.start_new_thread(checking_updated, ())
             print(f"Проход {', '.join(db.keys())} за {datetime.now().timestamp() - stamp}")
         except IndexError and Exception as error:
             print(error)
