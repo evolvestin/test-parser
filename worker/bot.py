@@ -147,7 +147,8 @@ async def sender(message, user, text=None, keyboard=None, log_text=None, **a_kwa
     if log_text is not None:
         logging.append(log_text)
         if dump:
-            await Auth.async_message(bot.send_message, id=Auth.logs.dump_chat_id, text=log_text)
+            head, _, _ = Auth.logs.header(Auth.get_me)
+            await Auth.async_message(bot.send_message, id=Auth.logs.dump_chat_id, text=f'{head}\n{log_text}')
     if update:
         db = SQL(db_path)
         db.update('users', user['id'], update)
