@@ -385,15 +385,16 @@ def auto_reboot():
     reboot = None
     while True:
         try:
+            sleep(30)
             date = datetime.now(timezone(timedelta(hours=3)))
-            if date.strftime('%H') == '01' and date.strftime('%M') == '00':
+            if date.strftime('%H') == '00' and date.strftime('%M') == '59':
                 reboot = True
-            sleep(50)
+                while date.strftime('%M') == '59':
+                    sleep(1)
             if reboot:
                 reboot = None
                 Auth.logs.reboot(dispatcher)
-                sleep(60)
-                print('перезагрузили')
+                Auth.dev.printer('перезагрузили')
         except IndexError and Exception:
             Auth.dev.thread_except()
 
