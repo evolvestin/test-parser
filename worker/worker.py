@@ -64,6 +64,7 @@ def checking_updated():
                 for app in connection.apps():
                     for dyno in app.dynos():
                         dyno.restart()
+            sleep(20)
         except IndexError and Exception:
             pass
 
