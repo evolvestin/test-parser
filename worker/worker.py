@@ -1,7 +1,8 @@
 import os
 import re
-import heroku3
 import objects
+import heroku3
+import _thread
 from PIL import Image
 from time import sleep
 from chrome import chrome
@@ -11,6 +12,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as ec
 # ==================================================================================================================
+last_update = int(datetime.now().timestamp())
 
 
 def db_creation():
@@ -54,7 +56,20 @@ def drive_updater(file_id, file_path):
         drive_client.update_file(file_id, file_path)
 
 
+def checking_updated():
+    while True:
+        try:
+            if int(datetime.now().timestamp()) - last_update > 600 and os.environ.get('api'):
+                connection = heroku3.from_key(os.environ['api'])
+                for app in connection.apps():
+                    for dyno in app.dynos():
+                        dyno.restart()
+        except IndexError and Exception:
+            pass
+
+
 def updater(driver, name):
+    global last_update
     currency = name.split('_')[0]
     period = int(name.split('_')[1])
     driver.get(f"{os.environ.get('link')}={currency}")
@@ -90,6 +105,7 @@ def updater(driver, name):
             image.save(new_path)
             drive_updater(db[name], new_path)
             os.remove(new_path)
+            last_update = int(datetime.now().timestamp())
     driver.get('https://google.com')
 
 
@@ -104,6 +120,7 @@ def start(stamp):
             for key in db:
                 updater(chrome_client, key)
             chrome_client.close()
+            _thread.start_new_thread(checking_updated, ())
             print(f"Проход {', '.join(db.keys())} за {datetime.now().timestamp() - stamp}")
         except IndexError and Exception as error:
             print(error)
