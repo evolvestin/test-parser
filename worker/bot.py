@@ -384,14 +384,16 @@ def alt_image():
 def auto_reboot():
     global logging
     reboot = None
+    tz = timezone(timedelta(hours=3))
     while True:
         try:
             sleep(30)
-            date = datetime.now(timezone(timedelta(hours=3)))
+            date = datetime.now(tz)
             if date.strftime('%H') == '00' and date.strftime('%M') == '59':
                 reboot = True
                 while date.strftime('%M') == '59':
                     sleep(1)
+                    date = datetime.now(tz)
             if reboot:
                 reboot = None
                 Auth.logs.reboot(dispatcher)
