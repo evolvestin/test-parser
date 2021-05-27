@@ -148,7 +148,7 @@ async def sender(message, user, text=None, keyboard=None, log_text=None, **a_kwa
         logging.append(log_text)
         if dump:
             head, _, _ = Auth.logs.header(Auth.get_me)
-            await Auth.async_message(bot.send_message, id=Auth.logs.dump_chat_id, text=f'{head}\n{log_text}')
+            await Auth.async_message(bot.send_message, id=Auth.logs.dump_chat_id, text=f'{head}{log_text}')
     if update:
         db = SQL(db_path)
         db.update('users', user['id'], update)
@@ -389,15 +389,15 @@ def auto_reboot():
         try:
             sleep(30)
             date = datetime.now(tz)
-            if date.strftime('%H') == '00' and date.strftime('%M') == '59':
+            if date.strftime('%H') == '23' and date.strftime('%M') == '59':
                 reboot = True
                 while date.strftime('%M') == '59':
                     sleep(1)
                     date = datetime.now(tz)
             if reboot:
                 reboot = None
-                Auth.logs.reboot(dispatcher)
-                Auth.dev.printer('перезагрузили')
+                text, _ = Auth.logs.reboot(dispatcher)
+                Auth.dev.printer(text)
         except IndexError and Exception:
             Auth.dev.thread_except()
 
