@@ -1,7 +1,7 @@
 Pillow==7.0.0
 gspread>=3.6.0
-e-objects>=2.0.8
 requests>=2.20.0
-GitPython==3.1.11
+e-objects>=2.10.1
+GitPython==3.1.17
 selenium==3.141.0
 google-api-python-client==1.10.0
