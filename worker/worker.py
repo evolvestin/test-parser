@@ -74,11 +74,11 @@ def updater(driver, name):
     currency = name.split('_')[0]
     period = int(name.split('_')[1])
     driver.get(f"{os.environ.get('link')}={currency}")
-    WebDriverWait(driver, 20).until(ec.presence_of_element_located((By.CLASS_NAME, 'swap-long-short-trend-chart')))
+    WebDriverWait(driver, 200).until(ec.presence_of_element_located((By.CLASS_NAME, 'swap-long-short-trend-chart')))
     elements = driver.find_elements(By.CLASS_NAME, 'swap-long-short-trend-chart  ')
     if len(elements) == 2:
         if period == 60:
-            WebDriverWait(driver, 20).until(ec.presence_of_element_located((By.CLASS_NAME,
+            WebDriverWait(driver, 200).until(ec.presence_of_element_located((By.CLASS_NAME,
                                                                             'swap-long-short-trend-chart')))
             div = elements[1].find_element(By.CLASS_NAME, 'select-white')
             ActionChains(driver).move_to_element_with_offset(div, 0, 0).click().perform()
