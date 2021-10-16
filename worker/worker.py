@@ -77,12 +77,12 @@ def updater(driver, name):
     WebDriverWait(driver, 20).until(ec.presence_of_element_located((By.CLASS_NAME, 'swap-long-short-trend-chart')))
     elements = driver.find_elements(By.CLASS_NAME, 'swap-long-short-trend-chart  ')
     if len(elements) == 2:
-        ActionChains(driver).move_to_element(elements[1].find_element(By.TAG_NAME, 'canvas')).perform()
         if period == 60:
+            WebDriverWait(driver, 20).until(ec.presence_of_element_located((By.CLASS_NAME,
+                                                                            'swap-long-short-trend-chart')))
             div = elements[1].find_element(By.CLASS_NAME, 'select-white')
-            div.click()
-            sleep(2)
-
+            ActionChains(driver).move_to_element_with_offset(div, 0, 0).click().perform()
+            sleep(3)
             for li in div.find_elements(By.TAG_NAME, 'li'):
                 if li.text == '1H':
                     ActionChains(driver).move_to_element(li).click().perform()
@@ -91,7 +91,8 @@ def updater(driver, name):
             sleep(3)
 
         element = elements[1].find_element(By.TAG_NAME, 'canvas')
-        ActionChains(driver).move_to_element_with_offset(element, 315, 45).click().perform()
+        ActionChains(driver).move_to_element(elements[1].find_element(By.TAG_NAME, 'canvas')).perform()
+        ActionChains(driver).move_to_element_with_offset(element, 360, 45).click().perform()
         WebDriverWait(driver, 20).until(ec.presence_of_element_located(
             (By.CLASS_NAME, 'chart-share-modal-content-footer-download')))
         sleep(3)
@@ -124,6 +125,12 @@ def start(stamp):
             chrome_client.close()
             print(f"Проход {', '.join(db.keys())} за {datetime.now().timestamp() - stamp}")
         except IndexError and Exception as error:
+            print(error)
+            import sys
+            import traceback
+            exc_type, exc_value, exc_traceback = sys.exc_info()
+            error_raw = traceback.format_exception(exc_type, exc_value, exc_traceback)
+            error = ''.join(error_raw)
             print(error)
             reboot = True
             if chrome_client:
