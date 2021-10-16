@@ -93,8 +93,8 @@ def updater(driver, name):
         element = elements[1].find_element(By.TAG_NAME, 'canvas')
         ActionChains(driver).move_to_element(elements[1].find_element(By.TAG_NAME, 'canvas')).perform()
         ActionChains(driver).move_to_element_with_offset(element, 360, 45).click().perform()
-        WebDriverWait(driver, 20).until(ec.presence_of_element_located(
-            (By.CLASS_NAME, 'chart-share-modal-content-footer-download')))
+        # WebDriverWait(driver, 20).until(ec.presence_of_element_located(
+        #     (By.CLASS_NAME, 'chart-share-modal-content-footer-download')))
         sleep(3)
         driver.find_element(By.CLASS_NAME, 'chart-share-modal-content-footer-download').click()
         sleep(5)
