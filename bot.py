@@ -337,6 +337,7 @@ async def repeat_all_messages(message: types.Message):
                                            reply_markup=types.ReplyKeyboardRemove(True), parse_mode='HTML')
 
             elif message['text'].lower().startswith('f'):
+                response = True
                 await Auth.async_message(bot.send_photo, id=message['chat']['id'], path='images/alt.jpg')
 
             elif message['text'].lower().startswith('h'):
