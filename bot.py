@@ -323,10 +323,6 @@ async def repeat_all_messages(message: types.Message):
                     elif message['text'].lower().startswith('/logs'):
                         text = Auth.logs.text()
 
-                    elif message['text'].lower().startswith('/new'):
-                        response = True
-                        await Auth.async_message(bot.send_photo, id=message['chat']['id'], path='images/alt.jpg')
-
                     elif message['text'].lower().startswith('/reload'):
                         text = 'Успешно отправлено:'
                         query = "SELECT id FROM users WHERE reaction = '✅' AND NOT id = 0"
@@ -341,7 +337,7 @@ async def repeat_all_messages(message: types.Message):
                                            reply_markup=types.ReplyKeyboardRemove(True), parse_mode='HTML')
 
             elif message['text'].lower().startswith('f'):
-                text = bold('Пример сообщения')
+                await Auth.async_message(bot.send_photo, id=message['chat']['id'], path='images/alt.jpg')
 
             elif message['text'].lower().startswith('h'):
                 text = 'Выбор таймфрейма'
