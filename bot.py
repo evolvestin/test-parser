@@ -5,6 +5,7 @@ import asyncio
 import gspread
 import objects
 import _thread
+import logging
 import requests
 from SQL import SQL
 from PIL import Image
@@ -20,16 +21,74 @@ from datetime import datetime, timezone, timedelta
 # =================================================================================================================
 stamp1 = time_now()
 
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
+MAX_RETRIES = 3
+RETRY_DELAY = 5
+
 
 def download_alt_image():
     download_path = 'alt.png'
-    response = requests.get(os.environ.get('alt_image'), stream=True)
-    with open(download_path, 'wb') as file:
-        file.write(response.content)
-    image = Image.open(download_path)
-    image = image.convert('RGB')
-    image.save('images/alt.jpg')
-    os.remove(download_path)
+    url = os.environ.get('alt_image')
+
+    for attempt in range(1, MAX_RETRIES + 1):
+        try:
+            response = requests.get(url, stream=True, timeout=10)
+
+            if response.status_code != 200:
+                logging.error(f"Failed to download image. Status code: {response.status_code}")
+                if attempt < MAX_RETRIES:
+                    sleep(RETRY_DELAY)
+                    continue
+                return False
+
+            # Check content type
+            content_type = response.headers.get('content-type', '').lower()
+            if not content_type.startswith('image/'):
+                logging.error(f"Invalid content type: {content_type}")
+                if attempt < MAX_RETRIES:
+                    sleep(RETRY_DELAY)
+                    continue
+                return False
+
+            with open(download_path, 'wb') as file:
+                for chunk in response.iter_content(chunk_size=8192):
+                    file.write(chunk)
+
+            try:
+                with Image.open(download_path) as img:
+                    img.verify()
+                    img = img.convert('RGB')
+                    img.save('images/alt.jpg')
+            except Exception as e:
+                logging.error(f"Invalid image file: {str(e)}")
+                if os.path.exists(download_path):
+                    os.remove(download_path)
+                if attempt < MAX_RETRIES:
+                    sleep(RETRY_DELAY)
+                    continue
+                return False
+
+            if os.path.exists(download_path):
+                os.remove(download_path)
+
+            logging.info("Successfully downloaded and processed alt image")
+            return True
+
+        except requests.RequestException as e:
+            logging.error(f"Network error during download (attempt {attempt}/{MAX_RETRIES}): {str(e)}")
+            if attempt < MAX_RETRIES:
+                sleep(RETRY_DELAY)
+                continue
+            return False
+        except Exception as e:
+            logging.error(f"Unexpected error during download (attempt {attempt}/{MAX_RETRIES}): {str(e)}")
+            if os.path.exists(download_path):
+                os.remove(download_path)
+            if attempt < MAX_RETRIES:
+                sleep(RETRY_DELAY)
+                continue
+            return False
 
 
 def users_db_creation():
@@ -101,8 +160,8 @@ def images_db_creation():
     return sorted(_names), _frames, client, folder_id
 
 
-logging = []
 idMe = 396978030
+logging_messages = []
 db_path = 'db/database.db'
 objects.environmental_files()
 os.makedirs('db', exist_ok=True)
@@ -139,13 +198,12 @@ def first_start(message):
 
 
 async def sender(message, user, text=None, keyboard=None, log_text=None, **a_kwargs):
-    global logging
     dump = True if 'Впервые' in str(log_text) else None
     task = a_kwargs['func'] if a_kwargs.get('func') else bot.send_message
     kwargs = {'log': log_text, 'text': text, 'user': user, 'message': message, 'keyboard': keyboard, **a_kwargs}
     response, log_text, update = await Auth.async_message(task, **kwargs)
     if log_text is not None:
-        logging.append(log_text)
+        logging_messages.append(log_text)
         if dump:
             head, _, _ = Auth.logs.header(Auth.get_me)
             await Auth.async_message(bot.send_message, id=Auth.logs.dump_chat_id, text=f'{head}{log_text}')
@@ -157,12 +215,11 @@ async def sender(message, user, text=None, keyboard=None, log_text=None, **a_kwa
 
 
 async def editor(call, user, text, keyboard, log_text=None):
-    global logging
     await bot.answer_callback_query(call['id'])
     kwargs = {'log': log_text, 'call': call, 'text': text, 'user': user, 'keyboard': keyboard}
     response, log_text, update = await Auth.async_message(bot.edit_message_text, **kwargs)
     if log_text is not None:
-        logging.append(log_text)
+        logging_messages.append(log_text)
     if update:
         db = SQL(db_path)
         db.update('users', user['id'], update)
@@ -173,7 +230,6 @@ async def editor(call, user, text, keyboard, log_text=None):
 @dispatcher.chat_member_handler()
 @dispatcher.my_chat_member_handler()
 async def member_handler(message: types.ChatMember):
-    global logging
     try:
         db = SQL(db_path)
         text, keyboard = None, None
@@ -186,7 +242,7 @@ async def member_handler(message: types.ChatMember):
                 text, keyboard = first_start(message)
                 if message['chat']['type'] == 'channel':
                     text = None
-        logging.append(log_text)
+        logging_messages.append(log_text)
         db.update('users', message['chat']['id'], update) if update else None
         keyboard = keyboard if message['chat']['type'] != 'channel' else None
         await Auth.async_message(bot.send_message, id=message['chat']['id'], text=text, keyboard=keyboard)
@@ -266,9 +322,6 @@ async def repeat_all_messages(message: types.Message):
 
                     elif message['text'].lower().startswith('/logs'):
                         text = Auth.logs.text()
-
-                    elif message['text'].lower().startswith('/reboot'):
-                        text, log_text = Auth.logs.reboot(dispatcher)
 
                     elif message['text'].lower().startswith('/new'):
                         response = True
@@ -375,39 +428,22 @@ def alt_image():
                 load = True
             sleep(1)
             if load:
-                download_alt_image()
+                success = download_alt_image()
+                if not success:
+                    logging.warning("Failed to download alt image after retries")
+                load = False
                 sleep(10)
-        except IndexError and Exception:
-            Auth.dev.thread_except()
-
-
-def auto_reboot():
-    global logging
-    reboot = None
-    tz = timezone(timedelta(hours=3))
-    while True:
-        try:
-            sleep(30)
-            date = datetime.now(tz)
-            if date.strftime('%H') == '23' and date.strftime('%M') == '59':
-                reboot = True
-                while date.strftime('%M') == '59':
-                    sleep(1)
-                    date = datetime.now(tz)
-            if reboot:
-                reboot = None
-                text, _ = Auth.logs.reboot(dispatcher)
-                Auth.dev.printer(text)
-        except IndexError and Exception:
+        except Exception as e:
+            logging.error(f"Error in alt_image loop: {str(e)}")
             Auth.dev.thread_except()
 
 
 def logger():
-    global logging
+    global logging_messages
     while True:
         try:
-            log = copy(logging)
-            logging = []
+            log = copy(logging_messages)
+            logging_messages = []
             Auth.logs.send(log)
         except IndexError and Exception:
             Auth.dev.thread_except()
@@ -419,7 +455,7 @@ def start(stamp):
         Auth.dev.printer(f'Запуск бота локально за {time_now() - stamp} сек.')
     else:
         Auth.dev.start(stamp)
-        threads = [logger, google_update, google_files, auto_reboot, alt_image]
+        threads = [logger, google_update, google_files, alt_image]
         Auth.dev.printer(f'Бот запущен за {time_now() - stamp} сек.')
 
     for thread_element in threads:
